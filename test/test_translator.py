@@ -6,11 +6,91 @@ from ollama import ResponseError as OllamaResponseError
 
 from pdf2zh import cache
 from pdf2zh.config import ConfigManager
-from pdf2zh.translator import BaseTranslator, OllamaTranslator, OpenAIlikedTranslator
+from pdf2zh.translator import (
+    BaseTranslator,
+    DeepseekTranslator,
+    GeminiTranslator,
+    GroqTranslator,
+    MiniMaxTranslator,
+    ModelScopeTranslator,
+    OllamaTranslator,
+    OpenAIlikedTranslator,
+    QwenMtTranslator,
+    SiliconTranslator,
+    X302AITranslator,
+    ZhipuTranslator,
+)
 
 # Since it is necessary to test whether the functionality meets the expected requirements,
 # private functions and private methods are allowed to be called.
 # pyright: reportPrivateUsage=false
+
+
+# (translator class, base_url env key, original default endpoint, required envs)
+BASE_URL_CASES = (
+    (
+        ModelScopeTranslator,
+        "MODELSCOPE_BASE_URL",
+        "https://api-inference.modelscope.cn/v1",
+        {
+            "MODELSCOPE_API_KEY": "test_api_key",
+            "MODELSCOPE_MODEL": "Qwen/Qwen2.5-32B-Instruct",
+        },
+    ),
+    (
+        ZhipuTranslator,
+        "ZHIPU_BASE_URL",
+        "https://open.bigmodel.cn/api/paas/v4",
+        {"ZHIPU_API_KEY": "test_api_key", "ZHIPU_MODEL": "glm-4-flash"},
+    ),
+    (
+        SiliconTranslator,
+        "SILICON_BASE_URL",
+        "https://api.siliconflow.cn/v1",
+        {
+            "SILICON_API_KEY": "test_api_key",
+            "SILICON_MODEL": "Qwen/Qwen2.5-7B-Instruct",
+        },
+    ),
+    (
+        X302AITranslator,
+        "X302AI_BASE_URL",
+        "https://api.302.ai/v1",
+        {"X302AI_API_KEY": "test_api_key", "X302AI_MODEL": "Gemma-7B"},
+    ),
+    (
+        GeminiTranslator,
+        "GEMINI_BASE_URL",
+        "https://generativelanguage.googleapis.com/v1beta/openai/",
+        {"GEMINI_API_KEY": "test_api_key", "GEMINI_MODEL": "gemini-1.5-flash"},
+    ),
+    (
+        GroqTranslator,
+        "GROQ_BASE_URL",
+        "https://api.groq.com/openai/v1",
+        {"GROQ_API_KEY": "test_api_key", "GROQ_MODEL": "llama-3-3-70b-versatile"},
+    ),
+    (
+        DeepseekTranslator,
+        "DEEPSEEK_BASE_URL",
+        "https://api.deepseek.com/v1",
+        {"DEEPSEEK_API_KEY": "test_api_key", "DEEPSEEK_MODEL": "deepseek-chat"},
+    ),
+    (
+        MiniMaxTranslator,
+        "MINIMAX_BASE_URL",
+        "https://api.minimax.io/v1",
+        {"MINIMAX_API_KEY": "test_api_key", "MINIMAX_MODEL": "MiniMax-M2.7"},
+    ),
+    (
+        QwenMtTranslator,
+        "ALI_BASE_URL",
+        "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        {"ALI_API_KEY": "test_api_key", "ALI_MODEL": "qwen-mt-turbo"},
+    ),
+)
+
+RELAY_BASE_URL = "https://relay.example.com/v1"
 
 
 class AutoIncreaseTranslator(BaseTranslator):
@@ -217,6 +297,79 @@ class TestOllamaTranslator(unittest.TestCase):
         )
         self.assertEqual(
             excepted_not_retain_cot_content, only_removed_cot_content.strip()
+        )
+
+
+class TestConfigurableBaseUrl(unittest.TestCase):
+    """The endpoint of each service must be configurable via its ``*_BASE_URL`` env."""
+
+    def setUp(self):
+        ConfigManager.clear()
+
+    def tearDown(self):
+        ConfigManager.clear()
+
+    def test_configured_base_url_is_used(self):
+        """AC-3: an explicit ``*_BASE_URL`` overrides the hardcoded endpoint."""
+        for translator_cls, base_url_key, _, required_envs in BASE_URL_CASES:
+            with self.subTest(translator=translator_cls.name):
+                ConfigManager.clear()
+                envs = dict(required_envs)
+                envs[base_url_key] = RELAY_BASE_URL
+                translator = translator_cls(
+                    lang_in="en", lang_out="zh", model=None, envs=envs
+                )
+                self.assertEqual(
+                    str(translator.client.base_url).rstrip("/"),
+                    RELAY_BASE_URL.rstrip("/"),
+                )
+
+    def test_default_base_url_is_used_when_key_absent(self):
+        """AC-4: without the key the original default endpoint is preserved."""
+        for translator_cls, base_url_key, default_url, required_envs in BASE_URL_CASES:
+            with self.subTest(translator=translator_cls.name):
+                ConfigManager.clear()
+                translator = translator_cls(
+                    lang_in="en",
+                    lang_out="zh",
+                    model=None,
+                    envs=dict(required_envs),
+                )
+                self.assertEqual(
+                    str(translator.client.base_url).rstrip("/"),
+                    default_url.rstrip("/"),
+                )
+                self.assertEqual(translator.envs[base_url_key], default_url)
+
+
+class TestGetEnvByTranslaternameToleratesMissingKey(unittest.TestCase):
+    """An old config.json without the new ``*_BASE_URL`` key must not raise KeyError."""
+
+    def setUp(self):
+        ConfigManager.clear()
+
+    def tearDown(self):
+        ConfigManager.clear()
+
+    def test_missing_env_key_returns_default(self):
+        """AC-5: a pre-existing entry lacking the key falls back to the default."""
+        ConfigManager.set_translator_by_name(
+            DeepseekTranslator.name,
+            {
+                "DEEPSEEK_API_KEY": "old_api_key",
+                "DEEPSEEK_MODEL": "deepseek-chat",
+            },
+        )
+        result = ConfigManager.get_env_by_translatername(
+            DeepseekTranslator, "DEEPSEEK_BASE_URL", "https://fallback.example/v1"
+        )
+        self.assertEqual(result, "https://fallback.example/v1")
+        # the default is written back into the config entry
+        self.assertEqual(
+            ConfigManager.get_translator_by_name(DeepseekTranslator.name)[
+                "DEEPSEEK_BASE_URL"
+            ],
+            "https://fallback.example/v1",
         )
 
 

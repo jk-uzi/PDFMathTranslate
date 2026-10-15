@@ -572,7 +572,10 @@ class ModelScopeTranslator(OpenAITranslator):
         ignore_cache=False,
     ):
         self.set_envs(envs)
-        base_url = "https://api-inference.modelscope.cn/v1"
+        base_url = (
+            self.envs.get("MODELSCOPE_BASE_URL")
+            or "https://api-inference.modelscope.cn/v1"
+        )
         api_key = self.envs["MODELSCOPE_API_KEY"]
         if not model:
             model = self.envs["MODELSCOPE_MODEL"]
@@ -592,6 +595,7 @@ class ZhipuTranslator(OpenAITranslator):
     # https://bigmodel.cn/dev/api/thirdparty-frame/openai-sdk
     name = "zhipu"
     envs = {
+        "ZHIPU_BASE_URL": "https://open.bigmodel.cn/api/paas/v4",
         "ZHIPU_API_KEY": None,
         "ZHIPU_MODEL": "glm-4-flash",
     }
@@ -601,7 +605,9 @@ class ZhipuTranslator(OpenAITranslator):
         self, lang_in, lang_out, model, envs=None, prompt=None, ignore_cache=False
     ):
         self.set_envs(envs)
-        base_url = "https://open.bigmodel.cn/api/paas/v4"
+        base_url = (
+            self.envs.get("ZHIPU_BASE_URL") or "https://open.bigmodel.cn/api/paas/v4"
+        )
         api_key = self.envs["ZHIPU_API_KEY"]
         if not model:
             model = self.envs["ZHIPU_MODEL"]
@@ -637,6 +643,7 @@ class SiliconTranslator(OpenAITranslator):
     # https://docs.siliconflow.cn/quickstart
     name = "silicon"
     envs = {
+        "SILICON_BASE_URL": "https://api.siliconflow.cn/v1",
         "SILICON_API_KEY": None,
         "SILICON_MODEL": "Qwen/Qwen2.5-7B-Instruct",
     }
@@ -646,7 +653,7 @@ class SiliconTranslator(OpenAITranslator):
         self, lang_in, lang_out, model, envs=None, prompt=None, ignore_cache=False
     ):
         self.set_envs(envs)
-        base_url = "https://api.siliconflow.cn/v1"
+        base_url = self.envs.get("SILICON_BASE_URL") or "https://api.siliconflow.cn/v1"
         api_key = self.envs["SILICON_API_KEY"]
         if not model:
             model = self.envs["SILICON_MODEL"]
@@ -666,6 +673,7 @@ class X302AITranslator(OpenAITranslator):
     # https://doc.302.ai/
     name = "302ai"
     envs = {
+        "X302AI_BASE_URL": "https://api.302.ai/v1",
         "X302AI_API_KEY": None,
         "X302AI_MODEL": "Gemma-7B",
     }
@@ -675,7 +683,7 @@ class X302AITranslator(OpenAITranslator):
         self, lang_in, lang_out, model, envs=None, prompt=None, ignore_cache=False
     ):
         self.set_envs(envs)
-        base_url = "https://api.302.ai/v1"
+        base_url = self.envs.get("X302AI_BASE_URL") or "https://api.302.ai/v1"
         api_key = self.envs["X302AI_API_KEY"]
         if not model:
             model = self.envs["X302AI_MODEL"]
@@ -695,6 +703,7 @@ class GeminiTranslator(OpenAITranslator):
     # https://ai.google.dev/gemini-api/docs/openai
     name = "gemini"
     envs = {
+        "GEMINI_BASE_URL": "https://generativelanguage.googleapis.com/v1beta/openai/",
         "GEMINI_API_KEY": None,
         "GEMINI_MODEL": "gemini-1.5-flash",
     }
@@ -704,7 +713,10 @@ class GeminiTranslator(OpenAITranslator):
         self, lang_in, lang_out, model, envs=None, prompt=None, ignore_cache=False
     ):
         self.set_envs(envs)
-        base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+        base_url = (
+            self.envs.get("GEMINI_BASE_URL")
+            or "https://generativelanguage.googleapis.com/v1beta/openai/"
+        )
         api_key = self.envs["GEMINI_API_KEY"]
         if not model:
             model = self.envs["GEMINI_MODEL"]
@@ -977,6 +989,7 @@ class GrokTranslator(OpenAITranslator):
 class GroqTranslator(OpenAITranslator):
     name = "groq"
     envs = {
+        "GROQ_BASE_URL": "https://api.groq.com/openai/v1",
         "GROQ_API_KEY": None,
         "GROQ_MODEL": "llama-3-3-70b-versatile",
     }
@@ -986,7 +999,7 @@ class GroqTranslator(OpenAITranslator):
         self, lang_in, lang_out, model, envs=None, prompt=None, ignore_cache=False
     ):
         self.set_envs(envs)
-        base_url = "https://api.groq.com/openai/v1"
+        base_url = self.envs.get("GROQ_BASE_URL") or "https://api.groq.com/openai/v1"
         api_key = self.envs["GROQ_API_KEY"]
         if not model:
             model = self.envs["GROQ_MODEL"]
@@ -1004,6 +1017,7 @@ class GroqTranslator(OpenAITranslator):
 class DeepseekTranslator(OpenAITranslator):
     name = "deepseek"
     envs = {
+        "DEEPSEEK_BASE_URL": "https://api.deepseek.com/v1",
         "DEEPSEEK_API_KEY": None,
         "DEEPSEEK_MODEL": "deepseek-chat",
     }
@@ -1013,7 +1027,7 @@ class DeepseekTranslator(OpenAITranslator):
         self, lang_in, lang_out, model, envs=None, prompt=None, ignore_cache=False
     ):
         self.set_envs(envs)
-        base_url = "https://api.deepseek.com/v1"
+        base_url = self.envs.get("DEEPSEEK_BASE_URL") or "https://api.deepseek.com/v1"
         api_key = self.envs["DEEPSEEK_API_KEY"]
         if not model:
             model = self.envs["DEEPSEEK_MODEL"]
@@ -1032,6 +1046,7 @@ class MiniMaxTranslator(OpenAITranslator):
     # https://platform.minimaxi.com/document/introduction
     name = "minimax"
     envs = {
+        "MINIMAX_BASE_URL": "https://api.minimax.io/v1",
         "MINIMAX_API_KEY": None,
         "MINIMAX_MODEL": "MiniMax-M2.7",
     }
@@ -1041,7 +1056,7 @@ class MiniMaxTranslator(OpenAITranslator):
         self, lang_in, lang_out, model, envs=None, prompt=None, ignore_cache=False
     ):
         self.set_envs(envs)
-        base_url = "https://api.minimax.io/v1"
+        base_url = self.envs.get("MINIMAX_BASE_URL") or "https://api.minimax.io/v1"
         api_key = self.envs["MINIMAX_API_KEY"]
         if not model:
             model = self.envs["MINIMAX_MODEL"]
@@ -1133,6 +1148,7 @@ class QwenMtTranslator(OpenAITranslator):
 
     name = "qwen-mt"
     envs = {
+        "ALI_BASE_URL": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "ALI_MODEL": "qwen-mt-turbo",
         "ALI_API_KEY": None,
         "ALI_DOMAINS": "This sentence is extracted from a scientific paper. When translating, please pay close attention to the use of specialized troubleshooting terminologies and adhere to scientific sentence structures to maintain the technical rigor and precision of the original text.",
@@ -1143,7 +1159,10 @@ class QwenMtTranslator(OpenAITranslator):
         self, lang_in, lang_out, model, envs=None, prompt=None, ignore_cache=False
     ):
         self.set_envs(envs)
-        base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+        base_url = (
+            self.envs.get("ALI_BASE_URL")
+            or "https://dashscope.aliyuncs.com/compatible-mode/v1"
+        )
         api_key = self.envs["ALI_API_KEY"]
 
         if not model:

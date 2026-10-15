@@ -158,11 +158,11 @@ class ConfigManager:
         translators = instance._config_data.get("translators", [])
         for translator in translators:
             if translator.get("name") == translater_name.name:
-                if translator["envs"][name]:
+                if translator["envs"].get(name):
                     return translator["envs"][name]
                 else:
                     with instance._lock:
-                        translator["envs"][name] = default
+                        translator.setdefault("envs", {})[name] = default
                         instance._save_config()
                         return default
 
@@ -170,7 +170,7 @@ class ConfigManager:
             translators = instance._config_data.get("translators", [])
             for translator in translators:
                 if translator.get("name") == translater_name.name:
-                    translator["envs"][name] = default
+                    translator.setdefault("envs", {})[name] = default
                     instance._save_config()
                     return default
             translators.append(
