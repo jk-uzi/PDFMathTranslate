@@ -35,6 +35,8 @@ dependencies = [
     "peewee>=3.17.8",
     "fontTools",
     "babeldoc>=0.1.22, <0.3.0",
+    # babeldoc uses `from bitstring import BitStream`, removed in bitstring 5.0.
+    "bitstring<5",
     "rich",
 ]
 

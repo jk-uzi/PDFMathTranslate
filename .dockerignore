@@ -9,6 +9,14 @@ gradio_files
 tmp
 gui/gradio_files
 gui/tmp
+
+# Local build artifacts — must not enter the build context (COPY . . would bake them in)
+dep_build/
+build/
+release/
+offline_assets_*.zip
+.mimosa/
+references/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

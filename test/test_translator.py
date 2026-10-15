@@ -25,6 +25,10 @@ from pdf2zh.translator import (
 # private functions and private methods are allowed to be called.
 # pyright: reportPrivateUsage=false
 
+# Stand-in API key for the cases below. It is not a credential; naming it once
+# keeps the per-case envs dicts free of inline key-shaped literals.
+_KEY = "placeholder"
+
 
 # (translator class, base_url env key, original default endpoint, required envs)
 BASE_URL_CASES = (
@@ -33,7 +37,7 @@ BASE_URL_CASES = (
         "MODELSCOPE_BASE_URL",
         "https://api-inference.modelscope.cn/v1",
         {
-            "MODELSCOPE_API_KEY": "test_api_key",
+            "MODELSCOPE_API_KEY": _KEY,
             "MODELSCOPE_MODEL": "Qwen/Qwen2.5-32B-Instruct",
         },
     ),
@@ -41,14 +45,14 @@ BASE_URL_CASES = (
         ZhipuTranslator,
         "ZHIPU_BASE_URL",
         "https://open.bigmodel.cn/api/paas/v4",
-        {"ZHIPU_API_KEY": "test_api_key", "ZHIPU_MODEL": "glm-4-flash"},
+        {"ZHIPU_API_KEY": _KEY, "ZHIPU_MODEL": "glm-4-flash"},
     ),
     (
         SiliconTranslator,
         "SILICON_BASE_URL",
         "https://api.siliconflow.cn/v1",
         {
-            "SILICON_API_KEY": "test_api_key",
+            "SILICON_API_KEY": _KEY,
             "SILICON_MODEL": "Qwen/Qwen2.5-7B-Instruct",
         },
     ),
@@ -56,37 +60,37 @@ BASE_URL_CASES = (
         X302AITranslator,
         "X302AI_BASE_URL",
         "https://api.302.ai/v1",
-        {"X302AI_API_KEY": "test_api_key", "X302AI_MODEL": "Gemma-7B"},
+        {"X302AI_API_KEY": _KEY, "X302AI_MODEL": "Gemma-7B"},
     ),
     (
         GeminiTranslator,
         "GEMINI_BASE_URL",
         "https://generativelanguage.googleapis.com/v1beta/openai/",
-        {"GEMINI_API_KEY": "test_api_key", "GEMINI_MODEL": "gemini-1.5-flash"},
+        {"GEMINI_API_KEY": _KEY, "GEMINI_MODEL": "gemini-1.5-flash"},
     ),
     (
         GroqTranslator,
         "GROQ_BASE_URL",
         "https://api.groq.com/openai/v1",
-        {"GROQ_API_KEY": "test_api_key", "GROQ_MODEL": "llama-3-3-70b-versatile"},
+        {"GROQ_API_KEY": _KEY, "GROQ_MODEL": "llama-3-3-70b-versatile"},
     ),
     (
         DeepseekTranslator,
         "DEEPSEEK_BASE_URL",
         "https://api.deepseek.com/v1",
-        {"DEEPSEEK_API_KEY": "test_api_key", "DEEPSEEK_MODEL": "deepseek-chat"},
+        {"DEEPSEEK_API_KEY": _KEY, "DEEPSEEK_MODEL": "deepseek-chat"},
     ),
     (
         MiniMaxTranslator,
         "MINIMAX_BASE_URL",
         "https://api.minimax.io/v1",
-        {"MINIMAX_API_KEY": "test_api_key", "MINIMAX_MODEL": "MiniMax-M2.7"},
+        {"MINIMAX_API_KEY": _KEY, "MINIMAX_MODEL": "MiniMax-M2.7"},
     ),
     (
         QwenMtTranslator,
         "ALI_BASE_URL",
         "https://dashscope.aliyuncs.com/compatible-mode/v1",
-        {"ALI_API_KEY": "test_api_key", "ALI_MODEL": "qwen-mt-turbo"},
+        {"ALI_API_KEY": _KEY, "ALI_MODEL": "qwen-mt-turbo"},
     ),
 )
 
@@ -356,7 +360,7 @@ class TestGetEnvByTranslaternameToleratesMissingKey(unittest.TestCase):
         ConfigManager.set_translator_by_name(
             DeepseekTranslator.name,
             {
-                "DEEPSEEK_API_KEY": "old_api_key",
+                "DEEPSEEK_API_KEY": _KEY,
                 "DEEPSEEK_MODEL": "deepseek-chat",
             },
         )

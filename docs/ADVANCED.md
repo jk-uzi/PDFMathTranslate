@@ -13,6 +13,7 @@
 - [Custom prompt](#prompt)
 - [Authorization](#auth)
 - [Custom configuration file](#cofig)
+- [Run without Docker](#local-launch)
 - [Fonts Subseting](#fonts-subset)
 - [Translation cache](#cache)
 
@@ -297,6 +298,68 @@ example config.json
 ```
 
 By default, the config file is saved in the `~/.config/PDFMathTranslate/config.json`. The program will start by reading the contents of config.json, and after that it will read the contents of the environment variables. When an environment variable is available, the contents of the environment variable are used first and the file is updated.
+
+Every service that speaks the OpenAI-compatible protocol exposes a `*_BASE_URL` field in the GUI, so you can point it at your own relay or proxy. This includes the services whose endpoint used to be fixed in code:
+
+| Service | Base URL field | Default |
+| --- | --- | --- |
+| DeepSeek | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com/v1` |
+| Zhipu | `ZHIPU_BASE_URL` | `https://open.bigmodel.cn/api/paas/v4` |
+| SiliconFlow | `SILICON_BASE_URL` | `https://api.siliconflow.cn/v1` |
+| 302.AI | `X302AI_BASE_URL` | `https://api.302.ai/v1` |
+| Gemini | `GEMINI_BASE_URL` | `https://generativelanguage.googleapis.com/v1beta/openai/` |
+| Groq | `GROQ_BASE_URL` | `https://api.groq.com/openai/v1` |
+| MiniMax | `MINIMAX_BASE_URL` | `https://api.minimax.io/v1` |
+| ModelScope | `MODELSCOPE_BASE_URL` | `https://api-inference.modelscope.cn/v1` |
+| Qwen-MT (Aliyun) | `ALI_BASE_URL` | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
+
+Leave the field empty to keep the default endpoint. For example, to route DeepSeek through your own proxy:
+
+```json
+{
+    "translators": [
+        {
+            "name": "deepseek",
+            "envs": {
+                "DEEPSEEK_BASE_URL": "https://your-relay.example.com/v1",
+                "DEEPSEEK_API_KEY": "sk-xxx",
+                "DEEPSEEK_MODEL": "deepseek-chat"
+            }
+        }
+    ]
+}
+```
+
+The generic `openai` and `openailiked` services (`OPENAI_BASE_URL`, `OPENAILIKED_BASE_URL`) can be pointed at any OpenAI-compatible endpoint, including a local one.
+
+[⬆️ Back to top](#toc)
+
+---
+
+<h3 id="local-launch">Run without Docker</h3>
+
+The service runs directly on your machine; Docker is only one of several options.
+
+- **One-click (Windows)**: double-click `script/start-local.bat`. It creates a `.venv`, installs the project, and opens the UI. It only requires [`uv`](https://docs.astral.sh/uv/) on your `PATH`.
+
+- **Manual**:
+
+  ```bash
+  uv venv --python 3.12 .venv
+  uv pip install --python .venv -e .
+  .venv/Scripts/python.exe -m pdf2zh.pdf2zh -i      # Windows
+  # .venv/bin/python -m pdf2zh.pdf2zh -i            # macOS / Linux
+  ```
+
+  The UI is then served at `http://localhost:7860/`.
+
+- **Portable package for someone without Python**: build the self-contained Windows bundle and hand over the folder:
+
+  ```powershell
+  ./script/build-win64.ps1 -PythonVersion 3.12.9 -GenerateOfflineAssets -DownloadVCRedist
+  ```
+
+  The recipient unzips `build/` and double-clicks `pdf2zh.exe`; no Python or Docker needed. With `-GenerateOfflineAssets` the layout model and fonts ship inside the bundle, so the first run works offline. If it fails to start, install the bundled `vc_redist.x64.exe` once (a Microsoft Visual C++ Redistributable is required by `onnxruntime`).
 
 [⬆️ Back to top](#toc)
 

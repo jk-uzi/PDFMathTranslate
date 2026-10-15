@@ -57,9 +57,15 @@ uv venv ./dep_build/venv
 ./dep_build/venv/Scripts/activate
 
 Write-Host "==== Installing project dependencies ===="
-uv pip install .
+uv pip install --reinstall .
 
 Write-Host "==== Copying site-packages to build ===="
+# Remove any previous copy first: Copy-Item -Recurse nests the source directory
+# inside an existing destination (build/site-packages/site-packages), which would
+# leave stale code in the location PyStand actually loads from.
+if (Test-Path "./build/site-packages") {
+    Remove-Item -Path "./build/site-packages" -Recurse -Force
+}
 Copy-Item -Path "./dep_build/venv/Lib/site-packages" -Destination "./build/site-packages" -Recurse -Force
 
 Write-Host "==== Copying _pystand_static.int to build ===="
