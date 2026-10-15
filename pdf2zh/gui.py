@@ -1,11 +1,13 @@
 import asyncio
 import cgi
+import ipaddress
 import os
 import shutil
 import socket
 import uuid
 from asyncio import CancelledError
 from pathlib import Path
+from urllib.parse import urljoin, urlparse
 import typing as T
 
 import gradio as gr
@@ -158,6 +160,89 @@ else:
 hidden_gradio_details: bool = bool(ConfigManager.get("HIDDEN_GRADIO_DETAILS"))
 
 
+# Maximum number of env input slots needed by any supported service.
+# Each service exposes one editable textbox per key of ``translator.envs``.
+MAX_ENV_FIELDS = max(len(t.envs) for t in service_map.values())
+
+
+def build_env_specs(translator, max_fields, hidden=False):
+    """Return a list of length max_fields of {"visible", "label", "value"} dicts
+    describing the env input slots for `translator`.
+
+    Slots beyond the number of env keys of `translator` stay invisible and
+    empty, so services with fewer keys than `max_fields` never collide with
+    the slots of a larger service (and no IndexError can occur).
+    """
+    specs = [{"visible": False, "label": "", "value": ""} for _ in range(max_fields)]
+    for i, (key, default) in enumerate(translator.envs.items()):
+        if i >= max_fields:
+            break
+        label = key
+        value = ConfigManager.get_env_by_translatername(translator, key, default)
+        visible = True
+        if hidden:
+            if "MODEL" not in str(label).upper() and value:
+                visible = False
+            # Hidden Keys From Gradio
+            if "API_KEY" in label.upper():
+                value = "***"  # We use "***" Present Real API_KEY
+        specs[i] = {"visible": visible, "label": label, "value": value}
+    return specs
+
+
+def assemble_envs(translator, values):
+    """Map the GUI's positional env widget values back to a {key: value} dict."""
+    _envs = {}
+    for i, key in enumerate(translator.envs.keys()):
+        if i < len(values):
+            _envs[key] = values[i]
+    for k, v in _envs.items():
+        if str(k).upper().endswith("API_KEY") and str(v) == "***":
+            # Load Real API_KEYs from local configure file
+            real_keys: str = ConfigManager.get_env_by_translatername(
+                translator, k, None
+            )
+            _envs[k] = real_keys
+    return _envs
+
+
+def _validate_remote_url(url: str) -> None:
+    """Reject URLs that could be used for SSRF (non-http(s), internal hosts).
+
+    Must be called BEFORE any network request is made.
+    """
+    try:
+        parsed = urlparse(str(url))
+    except Exception:
+        raise gr.Error("Invalid URL")
+    if parsed.scheme.lower() not in ("http", "https"):
+        raise gr.Error("Only http:// and https:// links are supported")
+    hostname = parsed.hostname
+    if not hostname:
+        raise gr.Error("The link is missing a host name")
+    try:
+        infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        raise gr.Error(f"Could not resolve the host name: {hostname}")
+    for info in infos:
+        addr = info[4][0]
+        try:
+            ip = ipaddress.ip_address(addr)
+        except ValueError:
+            raise gr.Error(f"Could not parse the resolved address: {addr}")
+        if (
+            ip.is_loopback
+            or ip.is_private
+            or ip.is_reserved
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            raise gr.Error(
+                "Refusing to download from a private, loopback or reserved address"
+            )
+
+
 # Public demo control
 def verify_recaptcha(response):
     """
@@ -183,7 +268,27 @@ def download_with_limit(url: str, save_path: str, size_limit: int) -> str:
     """
     chunk_size = 1024
     total_size = 0
-    with requests.get(url, stream=True, timeout=10) as response:
+    # Redirects are followed manually so that every hop can be validated
+    # against SSRF before a request is issued to it.
+    max_redirects = 5
+    current_url = url
+    for _ in range(max_redirects + 1):
+        _validate_remote_url(current_url)
+        response = requests.get(
+            current_url, stream=True, timeout=10, allow_redirects=False
+        )
+        if response.is_redirect or response.is_permanent_redirect:
+            location = response.headers.get("Location")
+            response.close()
+            if not location:
+                raise gr.Error("Redirect response without a Location header")
+            current_url = urljoin(current_url, location)
+            continue
+        break
+    else:
+        raise gr.Error("Too many redirects")
+
+    with response:
         response.raise_for_status()
         content = response.headers.get("Content-Disposition")
         try:  # filename from header
@@ -309,16 +414,7 @@ def translate_file(
     lang_from = lang_map[lang_from]
     lang_to = lang_map[lang_to]
 
-    _envs = {}
-    for i, env in enumerate(translator.envs.items()):
-        _envs[env[0]] = envs[i]
-    for k, v in _envs.items():
-        if str(k).upper().endswith("API_KEY") and str(v) == "***":
-            # Load Real API_KEYs from local configure file
-            real_keys: str = ConfigManager.get_env_by_translatername(
-                translator, k, None
-            )
-            _envs[k] = real_keys
+    _envs = assemble_envs(translator, envs)
 
     print(f"Files before translation: {os.listdir(output)}")
 
@@ -604,7 +700,7 @@ with gr.Blocks(
                 value=enabled_services[0],
             )
             envs = []
-            for i in range(3):
+            for i in range(MAX_ENV_FIELDS):
                 envs.append(
                     gr.Textbox(
                         visible=False,
@@ -659,35 +755,20 @@ with gr.Blocks(
                     value="fast",
                     interactive=True,
                 )
-                envs.append(prompt)
 
             def on_select_service(service, evt: gr.EventData):
                 translator = service_map[service]
-                _envs = []
-                for i in range(4):
-                    _envs.append(gr.update(visible=False, value=""))
-                for i, env in enumerate(translator.envs.items()):
-                    label = env[0]
-                    value = ConfigManager.get_env_by_translatername(
-                        translator, env[0], env[1]
+                _envs = [
+                    gr.update(
+                        visible=spec["visible"],
+                        label=spec["label"],
+                        value=spec["value"],
                     )
-                    visible = True
-                    if hidden_gradio_details:
-                        if (
-                            "MODEL" not in str(label).upper()
-                            and value
-                            and hidden_gradio_details
-                        ):
-                            visible = False
-                        # Hidden Keys From Gradio
-                        if "API_KEY" in label.upper():
-                            value = "***"  # We use "***" Present Real API_KEY
-                    _envs[i] = gr.update(
-                        visible=visible,
-                        label=label,
-                        value=value,
+                    for spec in build_env_specs(
+                        translator, MAX_ENV_FIELDS, hidden=hidden_gradio_details
                     )
-                _envs[-1] = gr.update(visible=translator.CustomPrompt)
+                ]
+                _envs.append(gr.update(visible=translator.CustomPrompt))
                 return _envs
 
             def on_select_filetype(file_type):
@@ -727,7 +808,7 @@ with gr.Blocks(
             service.select(
                 on_select_service,
                 service,
-                envs,
+                envs + [prompt],
             )
             vfont.change(on_vfont_change, inputs=vfont, outputs=None)
             file_type.select(
